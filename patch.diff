@@ -1,0 +1,11 @@
+--- ui/src/components/Sidebar.tsx
++++ ui/src/components/Sidebar.tsx
+@@ -64,6 +64,8 @@
+           size="icon-sm"
+           className="text-muted-foreground shrink-0"
+           onClick={openSearch}
++          aria-label="Search"
++          title="Search (⌘K)"
+         >
+           <Search className="h-4 w-4" />
+         </Button>
