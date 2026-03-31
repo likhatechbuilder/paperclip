@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import type { Issue } from "@paperclipai/shared";
 import { Link } from "@/lib/router";
 import { X } from "lucide-react";
@@ -25,7 +25,12 @@ interface IssueRowProps {
   className?: string;
 }
 
-export function IssueRow({
+// ⚡ Bolt Optimization:
+// Wrapped IssueRow in React.memo to prevent unnecessary re-renders when
+// parent lists (IssuesList, ProjectWorkspaceDetail) re-render due to search,
+// filter, or other unrelated state changes. Expected impact: significantly fewer
+// render cycles in large issue lists.
+export const IssueRow = memo(function IssueRow({
   issue,
   issueLinkState,
   selected = false,
@@ -155,4 +160,4 @@ export function IssueRow({
       ) : null}
     </Link>
   );
-}
+});
