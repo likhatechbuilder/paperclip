@@ -78,6 +78,28 @@ const SESSIONED_LOCAL_ADAPTERS = new Set([
   "pi_local",
 ]);
 
+const globalExecutionQueue: Array<() => Promise<void>> = [];
+let isExecutingGlobalQueue = false;
+
+async function processGlobalExecutionQueue() {
+  if (isExecutingGlobalQueue) return;
+  isExecutingGlobalQueue = true;
+  try {
+    while (globalExecutionQueue.length > 0) {
+      const task = globalExecutionQueue.shift();
+      if (task) {
+        try {
+          await task();
+        } catch (err) {
+          logger.error({ err }, "Global execution queue task failed");
+        }
+      }
+    }
+  } finally {
+    isExecutingGlobalQueue = false;
+  }
+}
+
 export function applyPersistedExecutionWorkspaceConfig(input: {
   config: Record<string, unknown>;
   workspaceConfig: ExecutionWorkspaceConfig | null;
@@ -2037,9 +2059,12 @@ export function heartbeatService(db: Db) {
       if (claimedRuns.length === 0) return [];
 
       for (const claimedRun of claimedRuns) {
-        void executeRun(claimedRun.id).catch((err) => {
-          logger.error({ err, runId: claimedRun.id }, "queued heartbeat execution failed");
+        globalExecutionQueue.push(async () => {
+          await executeRun(claimedRun.id).catch((err) => {
+            logger.error({ err, runId: claimedRun.id }, "queued heartbeat execution failed");
+          });
         });
+        void processGlobalExecutionQueue();
       }
       return claimedRuns;
     });

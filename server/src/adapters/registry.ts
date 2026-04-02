@@ -88,6 +88,15 @@ import {
   agentConfigurationDoc as ollamaAgentConfigurationDoc,
   models as ollamaModels,
 } from "@paperclipai/adapter-ollama-local";
+import {
+  execute as einsteinExecute,
+  testEnvironment as einsteinTestEnvironment,
+  listModels as listEinsteinModels,
+} from "@paperclipai/adapter-einstein-hand/server";
+import {
+  agentConfigurationDoc as einsteinAgentConfigurationDoc,
+  models as einsteinModels,
+} from "@paperclipai/adapter-einstein-hand";
 import { processAdapter } from "./process/index.js";
 import { httpAdapter } from "./http/index.js";
 
@@ -207,6 +216,16 @@ const ollamaLocalAdapter: ServerAdapterModule = {
   agentConfigurationDoc: ollamaAgentConfigurationDoc,
 };
 
+const einsteinHandAdapter: ServerAdapterModule = {
+  type: "einstein_hand",
+  execute: einsteinExecute,
+  testEnvironment: einsteinTestEnvironment,
+  models: einsteinModels,
+  listModels: listEinsteinModels,
+  supportsLocalAgentJwt: true,
+  agentConfigurationDoc: einsteinAgentConfigurationDoc,
+};
+
 const adaptersByType = new Map<string, ServerAdapterModule>(
   [
     claudeLocalAdapter,
@@ -218,6 +237,7 @@ const adaptersByType = new Map<string, ServerAdapterModule>(
     openclawGatewayAdapter,
     hermesLocalAdapter,
     ollamaLocalAdapter,
+    einsteinHandAdapter,
     processAdapter,
     httpAdapter,
   ].map((a) => [a.type, a]),

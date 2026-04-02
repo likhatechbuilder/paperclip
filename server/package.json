@@ -48,6 +48,7 @@
     "@paperclipai/adapter-claude-local": "workspace:*",
     "@paperclipai/adapter-codex-local": "workspace:*",
     "@paperclipai/adapter-cursor-local": "workspace:*",
+    "@paperclipai/adapter-einstein-hand": "workspace:*",
     "@paperclipai/adapter-gemini-local": "workspace:*",
     "@paperclipai/adapter-ollama-local": "workspace:*",
     "@paperclipai/adapter-openclaw-gateway": "workspace:*",

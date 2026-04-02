@@ -34,6 +34,7 @@ export const AGENT_ADAPTER_TYPES = [
   "ollama_local",
   "openclaw_gateway",
   "hermes_local",
+  "einstein_hand",
 ] as const;
 export type AgentAdapterType = (typeof AGENT_ADAPTER_TYPES)[number];
 
