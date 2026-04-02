@@ -282,6 +282,7 @@ export function IssueProperties({ issue, onUpdate, inline }: IssuePropertiesProp
                   className="p-1 text-muted-foreground hover:text-destructive rounded"
                   onClick={() => deleteLabel.mutate(label.id)}
                   title={`Delete ${label.name}`}
+                  aria-label={`Delete ${label.name}`}
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
