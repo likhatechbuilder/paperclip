@@ -16,23 +16,37 @@ export function dashboardService(db: Db) {
 
       if (!company) throw notFound("Company not found");
 
-      const agentRows = await db
-        .select({ status: agents.status, count: sql<number>`count(*)` })
-        .from(agents)
-        .where(eq(agents.companyId, companyId))
-        .groupBy(agents.status);
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const taskRows = await db
-        .select({ status: issues.status, count: sql<number>`count(*)` })
-        .from(issues)
-        .where(eq(issues.companyId, companyId))
-        .groupBy(issues.status);
-
-      const pendingApprovals = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(approvals)
-        .where(and(eq(approvals.companyId, companyId), eq(approvals.status, "pending")))
-        .then((rows) => Number(rows[0]?.count ?? 0));
+      // ⚡ Bolt Optimization:
+      // Parallelized independent analytics database queries to reduce overall latency
+      // using Promise.all rather than executing them sequentially.
+      const [agentRows, taskRows, pendingApprovals, [{ monthSpend }], budgetOverview] =
+        await Promise.all([
+          db
+            .select({ status: agents.status, count: sql<number>`count(*)` })
+            .from(agents)
+            .where(eq(agents.companyId, companyId))
+            .groupBy(agents.status),
+          db
+            .select({ status: issues.status, count: sql<number>`count(*)` })
+            .from(issues)
+            .where(eq(issues.companyId, companyId))
+            .groupBy(issues.status),
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(approvals)
+            .where(and(eq(approvals.companyId, companyId), eq(approvals.status, "pending")))
+            .then((rows) => Number(rows[0]?.count ?? 0)),
+          db
+            .select({
+              monthSpend: sql<number>`coalesce(sum(${costEvents.costCents}), 0)::int`,
+            })
+            .from(costEvents)
+            .where(and(eq(costEvents.companyId, companyId), gte(costEvents.createdAt, monthStart))),
+          budgets.overview(companyId),
+        ]);
 
       const agentCounts: Record<string, number> = {
         active: 0,
@@ -61,26 +75,11 @@ export function dashboardService(db: Db) {
         if (row.status !== "done" && row.status !== "cancelled") taskCounts.open += count;
       }
 
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const [{ monthSpend }] = await db
-        .select({
-          monthSpend: sql<number>`coalesce(sum(${costEvents.costCents}), 0)::int`,
-        })
-        .from(costEvents)
-        .where(
-          and(
-            eq(costEvents.companyId, companyId),
-            gte(costEvents.occurredAt, monthStart),
-          ),
-        );
-
       const monthSpendCents = Number(monthSpend);
       const utilization =
         company.budgetMonthlyCents > 0
           ? (monthSpendCents / company.budgetMonthlyCents) * 100
           : 0;
-      const budgetOverview = await budgets.overview(companyId);
 
       return {
         companyId,
