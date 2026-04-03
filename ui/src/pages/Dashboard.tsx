@@ -80,7 +80,8 @@ export function Dashboard() {
     enabled: !!selectedCompanyId,
   });
 
-  const recentIssues = issues ? getRecentIssues(issues) : [];
+  // ⚡ Bolt Optimization: Memoized recent issues sort to avoid re-sorting the entire array on every render
+  const recentIssues = useMemo(() => issues ? getRecentIssues(issues) : [], [issues]);
   const recentActivity = useMemo(() => (activity ?? []).slice(0, 10), [activity]);
 
   useEffect(() => {
@@ -158,9 +159,10 @@ export function Dashboard() {
     return map;
   }, [issues]);
 
+  // ⚡ Bolt Optimization: Replace O(N) array find on every render with O(1) map lookup
   const agentName = (id: string | null) => {
-    if (!id || !agents) return null;
-    return agents.find((a) => a.id === id)?.name ?? null;
+    if (!id || !agentMap) return null;
+    return agentMap.get(id)?.name ?? null;
   };
 
   if (!selectedCompanyId) {
