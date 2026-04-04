@@ -40,11 +40,28 @@ export function StatusIcon({ status, onChange, className, showLabel }: StatusIco
   if (!onChange) return showLabel ? <span className="inline-flex items-center gap-1.5">{circle}<span className="text-sm">{statusLabel(status)}</span></span> : circle;
 
   const trigger = showLabel ? (
-    <button className="inline-flex items-center gap-1.5 cursor-pointer hover:bg-accent/50 rounded px-1 -mx-1 py-0.5 transition-colors">
+    <button
+      className="inline-flex items-center gap-1.5 cursor-pointer hover:bg-accent/50 rounded px-1 -mx-1 py-0.5 transition-colors"
+      aria-label={`Change status (currently ${statusLabel(status)})`}
+    >
       {circle}
       <span className="text-sm">{statusLabel(status)}</span>
     </button>
-  ) : circle;
+  ) : (
+    <button
+      type="button"
+      className={cn(
+        "relative inline-flex h-4 w-4 rounded-full border-2 shrink-0 cursor-pointer",
+        colorClass,
+        className
+      )}
+      aria-label={`Change status (currently ${statusLabel(status)})`}
+    >
+      {isDone && (
+        <span className="absolute inset-0 m-auto h-2 w-2 rounded-full bg-current" />
+      )}
+    </button>
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
