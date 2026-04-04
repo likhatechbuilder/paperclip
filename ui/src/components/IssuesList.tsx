@@ -93,25 +93,53 @@ function toggleInArray(arr: string[], value: string): string[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 }
 
+// ⚡ Bolt Optimization:
+// Convert filter arrays to Sets for O(1) lookups. This transforms the filtering step
+// from O(N * M) to O(N), which is noticeably faster when rendering large lists of issues
+// with multiple filters applied.
 function applyFilters(issues: Issue[], state: IssueViewState, currentUserId?: string | null): Issue[] {
   let result = issues;
-  if (state.statuses.length > 0) result = result.filter((i) => state.statuses.includes(i.status));
-  if (state.priorities.length > 0) result = result.filter((i) => state.priorities.includes(i.priority));
+
+  if (state.statuses.length > 0) {
+    const statusSet = new Set(state.statuses);
+    result = result.filter((i) => statusSet.has(i.status));
+  }
+
+  if (state.priorities.length > 0) {
+    const prioritySet = new Set(state.priorities);
+    result = result.filter((i) => prioritySet.has(i.priority));
+  }
+
   if (state.assignees.length > 0) {
+    const assigneeSet = new Set(state.assignees);
+    const hasUnassigned = assigneeSet.has("__unassigned");
+    const hasMe = assigneeSet.has("__me");
+
     result = result.filter((issue) => {
-      for (const assignee of state.assignees) {
-        if (assignee === "__unassigned" && !issue.assigneeAgentId && !issue.assigneeUserId) return true;
-        if (assignee === "__me" && currentUserId && issue.assigneeUserId === currentUserId) return true;
-        if (issue.assigneeAgentId === assignee) return true;
-      }
+      if (hasUnassigned && !issue.assigneeAgentId && !issue.assigneeUserId) return true;
+      if (hasMe && currentUserId && issue.assigneeUserId === currentUserId) return true;
+      if (issue.assigneeAgentId && assigneeSet.has(issue.assigneeAgentId)) return true;
       return false;
     });
   }
-  if (state.labels.length > 0) result = result.filter((i) => (i.labelIds ?? []).some((id) => state.labels.includes(id)));
-  if (state.projects.length > 0) result = result.filter((i) => i.projectId != null && state.projects.includes(i.projectId));
+
+  if (state.labels.length > 0) {
+    const labelSet = new Set(state.labels);
+    result = result.filter((i) => (i.labelIds ?? []).some((id) => labelSet.has(id)));
+  }
+
+  if (state.projects.length > 0) {
+    const projectSet = new Set(state.projects);
+    result = result.filter((i) => i.projectId != null && projectSet.has(i.projectId));
+  }
+
   return result;
 }
 
+// ⚡ Bolt Optimization:
+// Removed `new Date()` allocations inside the sorting loop for `createdAt` and `updatedAt`.
+// String/Date comparisons via `<` and `>` operators are natively supported and drastically
+// faster than creating objects and parsing strings during every O(N log N) comparison pass.
 function sortIssues(issues: Issue[], state: IssueViewState): Issue[] {
   const sorted = [...issues];
   const dir = state.sortDir === "asc" ? 1 : -1;
@@ -124,9 +152,9 @@ function sortIssues(issues: Issue[], state: IssueViewState): Issue[] {
       case "title":
         return dir * a.title.localeCompare(b.title);
       case "created":
-        return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+        return dir * (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0);
       case "updated":
-        return dir * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+        return dir * (a.updatedAt < b.updatedAt ? -1 : a.updatedAt > b.updatedAt ? 1 : 0);
       default:
         return 0;
     }
