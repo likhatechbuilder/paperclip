@@ -1,0 +1,3 @@
+## 2025-04-04 - O(M*N) Filters and Inner Loop Objects in Sorting
+**Learning:** React components dealing with large lists (like `IssuesList`) often combine filtering and sorting. Using `Array.includes()` for M filter conditions on N items results in O(M*N) iterations. Furthermore, instantiating `new Date()` directly inside the `sort` callback causes O(N log N) object allocations and string parsings, which significantly degrades performance on large datasets.
+**Action:** When filtering by multiple IDs or enumerations, convert the filter arrays into `Set`s before the loop to reduce O(M*N) to O(N). For sorting by dates, rely on native `<` and `>` string/date comparisons rather than `new Date().getTime()`.
