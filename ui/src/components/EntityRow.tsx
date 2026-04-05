@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Link } from "@/lib/router";
 import { cn } from "../lib/utils";
 
@@ -14,7 +14,12 @@ interface EntityRowProps {
   className?: string;
 }
 
-export function EntityRow({
+// ⚡ Bolt Optimization:
+// Wrapped EntityRow in React.memo to prevent unnecessary re-renders when
+// parent lists (Agents, Projects, MyIssues) re-render. Expected impact: fewer
+// render cycles in medium-to-large entity lists when searching, filtering, or
+// parent state changes.
+export const EntityRow = memo(function EntityRow({
   leading,
   identifier,
   title,
