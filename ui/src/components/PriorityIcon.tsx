@@ -46,7 +46,11 @@ export function PriorityIcon({ priority, onChange, className, showLabel }: Prior
       {icon}
       <span className="text-sm">{config.label}</span>
     </button>
-  ) : icon;
+  ) : (
+    <button aria-label={`Change priority (current: ${config.label})`} className="inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm">
+      {icon}
+    </button>
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
