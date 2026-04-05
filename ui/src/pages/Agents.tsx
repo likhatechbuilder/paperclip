@@ -20,19 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Bot, Plus, List, GitBranch, SlidersHorizontal } from "lucide-react";
 import { AGENT_ROLE_LABELS, type Agent } from "@paperclipai/shared";
 
-const adapterLabels: Record<string, string> = {
-  claude_local: "Claude",
-  codex_local: "Codex",
-  gemini_local: "Gemini",
-  ollama_local: "Ollama",
-  opencode_local: "OpenCode",
-  cursor: "Cursor",
-  pi_local: "Pi",
-  hermes_local: "Hermes",
-  openclaw_gateway: "OpenClaw Gateway",
-  process: "Process",
-  http: "HTTP",
-};
+import { getAdapterLabel } from "../adapters/adapter-display-registry";
 
 const roleLabels = AGENT_ROLE_LABELS as Record<string, string>;
 
@@ -265,7 +253,7 @@ export function Agents() {
                         />
                       )}
                       <span className="text-xs text-muted-foreground font-mono w-14 text-right">
-                        {adapterLabels[agent.adapterType] ?? agent.adapterType}
+                        {getAdapterLabel(agent.adapterType)}
                       </span>
                       <span className="text-xs text-muted-foreground w-16 text-right">
                         {agent.lastHeartbeatAt ? relativeTime(agent.lastHeartbeatAt) : "—"}
@@ -366,7 +354,7 @@ function OrgTreeNode({
             {agent && (
               <>
                 <span className="text-xs text-muted-foreground font-mono w-14 text-right">
-                  {adapterLabels[agent.adapterType] ?? agent.adapterType}
+                  {getAdapterLabel(agent.adapterType)}
                 </span>
                 <span className="text-xs text-muted-foreground w-16 text-right">
                   {agent.lastHeartbeatAt ? relativeTime(agent.lastHeartbeatAt) : "—"}
