@@ -49,6 +49,7 @@ export function CopyText({ text, children, className, copiedLabel = "Copied!" }:
       <button
         ref={triggerRef}
         type="button"
+        aria-label={children ? undefined : `Copy ${text}`}
         className={cn(
           "cursor-copy hover:text-foreground transition-colors",
           className,
