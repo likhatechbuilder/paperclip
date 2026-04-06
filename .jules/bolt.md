@@ -1,0 +1,3 @@
+## 2024-05-18 - [Issue Tree Memoization and Descendant Count Caching]
+**Learning:** [In React, rendering recursive structures (like trees) where you compute values inside the render path on every cycle (e.g. `countDescendants`) can cause severe O(N^2) bottlenecks when lists are large. Additionally, inline array and function generations within standard render pathways causes widespread re-renders down the tree, even when the original data hasn't changed.]
+**Action:** [Memoize complex tree building and data structures inside a `useMemo` hook, and calculate recursive values like descendant counts once during tree generation rather than repetitively looking them up during render paths.]

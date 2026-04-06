@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { CircleDot, Plus, Filter, ArrowUpDown, Layers, Check, X, ChevronRight, List, Columns3, User, Search } from "lucide-react";
 import { KanbanBoard } from "./KanbanBoard";
-import { buildIssueTree, countDescendants } from "../lib/issue-tree";
+import { buildIssueTree } from "../lib/issue-tree";
 import type { Issue } from "@paperclipai/shared";
 
 /* ── Helpers ── */
@@ -294,35 +294,40 @@ export function IssuesList({
   const activeFilterCount = countActiveFilters(viewState);
 
   const groupedContent = useMemo(() => {
+    let groupsData: { key: string; label: string | null; items: Issue[] }[];
     if (viewState.groupBy === "none") {
-      return [{ key: "__all", label: null as string | null, items: filtered }];
-    }
-    if (viewState.groupBy === "status") {
+      groupsData = [{ key: "__all", label: null as string | null, items: filtered }];
+    } else if (viewState.groupBy === "status") {
       const groups = groupBy(filtered, (i) => i.status);
-      return statusOrder
+      groupsData = statusOrder
         .filter((s) => groups[s]?.length)
         .map((s) => ({ key: s, label: statusLabel(s), items: groups[s]! }));
-    }
-    if (viewState.groupBy === "priority") {
+    } else if (viewState.groupBy === "priority") {
       const groups = groupBy(filtered, (i) => i.priority);
-      return priorityOrder
+      groupsData = priorityOrder
         .filter((p) => groups[p]?.length)
         .map((p) => ({ key: p, label: statusLabel(p), items: groups[p]! }));
+    } else {
+      // assignee
+      const groups = groupBy(
+        filtered,
+        (issue) => issue.assigneeAgentId ?? (issue.assigneeUserId ? `__user:${issue.assigneeUserId}` : "__unassigned"),
+      );
+      groupsData = Object.keys(groups).map((key) => ({
+        key,
+        label:
+          key === "__unassigned"
+            ? "Unassigned"
+            : key.startsWith("__user:")
+              ? (formatAssigneeUserLabel(key.slice("__user:".length), currentUserId) ?? "User")
+              : (agentName(key) ?? key.slice(0, 8)),
+        items: groups[key]!,
+      }));
     }
-    // assignee
-    const groups = groupBy(
-      filtered,
-      (issue) => issue.assigneeAgentId ?? (issue.assigneeUserId ? `__user:${issue.assigneeUserId}` : "__unassigned"),
-    );
-    return Object.keys(groups).map((key) => ({
-      key,
-      label:
-        key === "__unassigned"
-          ? "Unassigned"
-          : key.startsWith("__user:")
-            ? (formatAssigneeUserLabel(key.slice("__user:".length), currentUserId) ?? "User")
-            : (agentName(key) ?? key.slice(0, 8)),
-      items: groups[key]!,
+
+    return groupsData.map(group => ({
+      ...group,
+      tree: buildIssueTree(group.items)
     }));
   }, [filtered, viewState.groupBy, agents, agentName, currentUserId]);
 
@@ -691,12 +696,12 @@ export function IssuesList({
             )}
             <CollapsibleContent>
               {(() => {
-                const { roots, childMap } = buildIssueTree(group.items);
+                const { roots, childMap, descendantCount } = group.tree;
 
                 const renderIssueRow = (issue: Issue, depth: number) => {
                   const children = childMap.get(issue.id) ?? [];
                   const hasChildren = children.length > 0;
-                  const totalDescendants = hasChildren ? countDescendants(issue.id, childMap) : 0;
+                  const totalDescendants = hasChildren ? (descendantCount.get(issue.id) ?? 0) : 0;
                   const isExpanded = !viewState.collapsedParents.includes(issue.id);
                   const toggleCollapse = (e: { preventDefault: () => void; stopPropagation: () => void }) => {
                     e.preventDefault();
