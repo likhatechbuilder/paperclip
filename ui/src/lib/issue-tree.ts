@@ -3,6 +3,7 @@ import type { Issue } from "@paperclipai/shared";
 export interface IssueTree {
   roots: Issue[];
   childMap: Map<string, Issue[]>;
+  descendantCount: Map<string, number>;
 }
 
 /**
@@ -11,6 +12,7 @@ export interface IssueTree {
  * - `roots` contains issues whose parent is absent from the list (or have no
  *   parent at all), so orphaned sub-tasks are always visible at root level.
  * - `childMap` maps each parent id to its direct children in list order.
+ * - `descendantCount` caches the total number of descendants (all depths) for each parent.
  */
 export function buildIssueTree(items: Issue[]): IssueTree {
   const itemIds = new Set(items.map((i) => i.id));
@@ -23,12 +25,34 @@ export function buildIssueTree(items: Issue[]): IssueTree {
       childMap.set(item.parentId, arr);
     }
   }
-  return { roots, childMap };
+
+  const descendantCount = new Map<string, number>();
+
+  function countDescendants(id: string): number {
+    if (descendantCount.has(id)) {
+      return descendantCount.get(id)!;
+    }
+    const children = childMap.get(id) ?? [];
+    let count = children.length;
+    for (const child of children) {
+      count += countDescendants(child.id);
+    }
+    descendantCount.set(id, count);
+    return count;
+  }
+
+  // Pre-calculate descendant counts for all items
+  for (const id of itemIds) {
+    countDescendants(id);
+  }
+
+  return { roots, childMap, descendantCount };
 }
 
 /**
  * Returns the total number of descendants (all depths) of `id` in `childMap`.
  * Used to accurately label collapsed parent badges like "(3 sub-tasks)".
+ * @deprecated Use `descendantCount.get(id)` directly from the `IssueTree` instead.
  */
 export function countDescendants(id: string, childMap: Map<string, Issue[]>): number {
   const children = childMap.get(id) ?? [];
