@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { useSidebar } from "../context/SidebarContext";
+import { useDebounce } from "../hooks/useDebounce";
 import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
 import { projectsApi } from "../api/projects";
@@ -41,6 +42,12 @@ export function CommandPalette() {
   const { isMobile, setSidebarOpen } = useSidebar();
   const searchQuery = query.trim();
 
+  // ⚡ Bolt Optimization:
+  // Debounce the search query to prevent firing an API request on every single keystroke.
+  // Expected impact: Drastically reduces unnecessary backend load and database queries
+  // when a user types a search term quickly, saving bandwidth and compute.
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -64,9 +71,9 @@ export function CommandPalette() {
   });
 
   const { data: searchedIssues = [] } = useQuery({
-    queryKey: queryKeys.issues.search(selectedCompanyId!, searchQuery),
-    queryFn: () => issuesApi.list(selectedCompanyId!, { q: searchQuery }),
-    enabled: !!selectedCompanyId && open && searchQuery.length > 0,
+    queryKey: queryKeys.issues.search(selectedCompanyId!, debouncedSearchQuery),
+    queryFn: () => issuesApi.list(selectedCompanyId!, { q: debouncedSearchQuery }),
+    enabled: !!selectedCompanyId && open && debouncedSearchQuery.length > 0,
   });
 
   const { data: agents = [] } = useQuery({
