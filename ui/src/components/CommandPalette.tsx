@@ -41,6 +41,12 @@ export function CommandPalette() {
   const { isMobile, setSidebarOpen } = useSidebar();
   const searchQuery = query.trim();
 
+  // ⚡ Bolt Optimization:
+  // Debounce the search query to reduce the number of API calls made when typing
+  // in the Command Palette. This improves perceived responsiveness by deferring
+  // network requests until typing pauses.
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -64,9 +70,9 @@ export function CommandPalette() {
   });
 
   const { data: searchedIssues = [] } = useQuery({
-    queryKey: queryKeys.issues.search(selectedCompanyId!, searchQuery),
-    queryFn: () => issuesApi.list(selectedCompanyId!, { q: searchQuery }),
-    enabled: !!selectedCompanyId && open && searchQuery.length > 0,
+    queryKey: queryKeys.issues.search(selectedCompanyId!, debouncedSearchQuery),
+    queryFn: () => issuesApi.list(selectedCompanyId!, { q: debouncedSearchQuery }),
+    enabled: !!selectedCompanyId && open && debouncedSearchQuery.length > 0,
   });
 
   const { data: agents = [] } = useQuery({
@@ -96,8 +102,8 @@ export function CommandPalette() {
   };
 
   const visibleIssues = useMemo(
-    () => (searchQuery.length > 0 ? searchedIssues : issues),
-    [issues, searchedIssues, searchQuery],
+    () => (debouncedSearchQuery.length > 0 ? searchedIssues : issues),
+    [issues, searchedIssues, debouncedSearchQuery],
   );
 
   return (
@@ -184,8 +190,8 @@ export function CommandPalette() {
                 <CommandItem
                   key={issue.id}
                   value={
-                    searchQuery.length > 0
-                      ? `${searchQuery} ${issue.identifier ?? ""} ${issue.title}`
+                    debouncedSearchQuery.length > 0
+                      ? `${debouncedSearchQuery} ${issue.identifier ?? ""} ${issue.title}`
                       : undefined
                   }
                   onSelect={() => go(`/issues/${issue.identifier ?? issue.id}`)}
