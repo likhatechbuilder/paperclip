@@ -378,6 +378,7 @@ export function IssuesList({
               className={`p-1.5 transition-colors ${viewState.viewMode === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => updateView({ viewMode: "list" })}
               title="List view"
+              aria-label="List view"
             >
               <List className="h-3.5 w-3.5" />
             </button>
@@ -385,6 +386,7 @@ export function IssuesList({
               className={`p-1.5 transition-colors ${viewState.viewMode === "board" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => updateView({ viewMode: "board" })}
               title="Board view"
+              aria-label="Board view"
             >
               <Columns3 className="h-3.5 w-3.5" />
             </button>
@@ -400,13 +402,25 @@ export function IssuesList({
                   <span className="sm:hidden text-[10px] font-medium ml-0.5">{activeFilterCount}</span>
                 )}
                 {activeFilterCount > 0 && (
-                  <X
-                    className="h-3 w-3 ml-1 hidden sm:block"
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Clear filters"
+                    className="ml-1 hidden sm:block"
                     onClick={(e) => {
                       e.stopPropagation();
                       updateView({ statuses: [], priorities: [], assignees: [], labels: [], projects: [] });
                     }}
-                  />
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        updateView({ statuses: [], priorities: [], assignees: [], labels: [], projects: [] });
+                      }
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
                 )}
               </Button>
             </PopoverTrigger>
