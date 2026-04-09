@@ -1,5 +1,6 @@
-import { useDeferredValue, useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useDebounce } from "../hooks/useDebounce";
 import { pickTextColorForPillBg } from "@/lib/color-contrast";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
@@ -224,8 +225,8 @@ export function IssuesList({
   const [assigneePickerIssueId, setAssigneePickerIssueId] = useState<string | null>(null);
   const [assigneeSearch, setAssigneeSearch] = useState("");
   const [issueSearch, setIssueSearch] = useState(initialSearch ?? "");
-  const deferredIssueSearch = useDeferredValue(issueSearch);
-  const normalizedIssueSearch = deferredIssueSearch.trim().toLowerCase();
+  const debouncedIssueSearch = useDebounce(issueSearch, 300);
+  const normalizedIssueSearch = debouncedIssueSearch.trim().toLowerCase();
 
   useEffect(() => {
     setIssueSearch(initialSearch ?? "");
