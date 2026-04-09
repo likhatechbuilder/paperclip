@@ -1,10 +1,11 @@
-import { UserPlus, Lightbulb, ShieldAlert, ShieldCheck } from "lucide-react";
+import { UserPlus, Lightbulb, ShieldAlert, ShieldCheck, Brain } from "lucide-react";
 import { formatCents } from "../lib/utils";
 
 export const typeLabel: Record<string, string> = {
   hire_agent: "Hire Agent",
   approve_ceo_strategy: "CEO Strategy",
   budget_override_required: "Budget Override",
+  approve_observer_insight: "Observer Insight",
 };
 
 /** Build a contextual label for an approval, e.g. "Hire Agent: Designer" */
@@ -20,6 +21,7 @@ export const typeIcon: Record<string, typeof UserPlus> = {
   hire_agent: UserPlus,
   approve_ceo_strategy: Lightbulb,
   budget_override_required: ShieldAlert,
+  approve_observer_insight: Brain,
 };
 
 export const defaultTypeIcon = ShieldCheck;
@@ -127,8 +129,28 @@ export function BudgetOverridePayload({ payload }: { payload: Record<string, unk
   );
 }
 
+export function ObserverInsightPayload({ payload }: { payload: Record<string, unknown> }) {
+  const markdown = payload.suggestion ?? payload.skillMarkdown ?? payload.content;
+  return (
+    <div className="mt-3 space-y-1.5 text-sm">
+      <PayloadField label="Title" value={payload.title} />
+      {!!markdown && (
+        <div className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground whitespace-pre-wrap font-mono text-xs max-h-48 overflow-y-auto">
+          {String(markdown)}
+        </div>
+      )}
+      {!markdown && (
+        <pre className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground overflow-x-auto max-h-48">
+          {JSON.stringify(payload, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export function ApprovalPayloadRenderer({ type, payload }: { type: string; payload: Record<string, unknown> }) {
   if (type === "hire_agent") return <HireAgentPayload payload={payload} />;
   if (type === "budget_override_required") return <BudgetOverridePayload payload={payload} />;
+  if (type === "approve_observer_insight") return <ObserverInsightPayload payload={payload} />;
   return <CeoStrategyPayload payload={payload} />;
 }

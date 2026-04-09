@@ -20,6 +20,7 @@ function startPaperclip() {
     stdio: "inherit",
     shell: true,
     cwd: process.cwd(),
+    env: { ...process.env, PAPERCLIP_OPEN_ON_LISTEN: "false" },
   });
 
   currentProcess.on("exit", (code, signal) => {
