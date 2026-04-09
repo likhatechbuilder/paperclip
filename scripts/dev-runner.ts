@@ -459,7 +459,14 @@ async function markChildAsCurrent() {
   dirtyPaths = new Set();
   lastChangedAt = null;
   lastRestartAt = new Date().toISOString();
-  await refreshPendingMigrations();
+  // On Windows/NTFS, refreshPendingMigrations() spawns its own embedded-postgres
+  // which competes with the server's instance and causes deadlocks.
+  // Fire-and-forget: let the server handle migrations via PAPERCLIP_MIGRATION_AUTO_APPLY.
+  if (process.platform !== "win32") {
+    await refreshPendingMigrations();
+  } else {
+    void refreshPendingMigrations().catch(() => {});
+  }
   await updateDevServiceRecord();
 }
 
@@ -517,10 +524,17 @@ async function startServerChild() {
   await buildPluginSdk();
 
   const serverScript = mode === "watch" ? "dev:watch" : "dev";
+  
+  // Prevent browser spam: only allow opening the browser if it's the very first start of this runner session
+  const childEnv = { ...env };
+  if (lastRestartAt !== null) {
+     childEnv.PAPERCLIP_OPEN_ON_LISTEN = "false";
+  }
+
   child = spawn(
     pnpmBin,
     ["--filter", "@paperclipai/server", serverScript, ...forwardedArgs],
-    { stdio: "inherit", env, shell: process.platform === "win32" },
+    { stdio: "inherit", env: childEnv, shell: process.platform === "win32" },
   );
 
   childExitPromise = new Promise((resolve, reject) => {
@@ -645,7 +659,13 @@ process.on("SIGTERM", () => {
   void shutdown("SIGTERM");
 });
 
-await maybePreflightMigrations();
+// On Windows/NTFS, the preflight migration check spawns its own embedded-postgres
+// which takes 30-60s and can deadlock with the server's own postgres startup.
+// The server already auto-applies migrations when PAPERCLIP_MIGRATION_AUTO_APPLY=true,
+// so this preflight is redundant on Windows.
+if (process.platform !== "win32") {
+  await maybePreflightMigrations();
+}
 await startServerChild();
 installDevIntervals();
 
