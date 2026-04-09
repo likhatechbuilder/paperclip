@@ -26,5 +26,5 @@ export const defaultCreateValues: CreateConfigValues = {
   runtimeServicesJson: "",
   maxTurnsPerRun: 1000,
   heartbeatEnabled: false,
-  intervalSec: 300,
+  intervalSec: 60,
 };

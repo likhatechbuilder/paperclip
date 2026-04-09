@@ -79,7 +79,13 @@ export async function runCommand(opts: RunOptions): Promise<void> {
   }
 
   p.log.step("Starting Paperclip server...");
-  const startedServer = await importServerEntry();
+  let startedServer;
+  try {
+    startedServer = await importServerEntry();
+  } catch (err) {
+    console.error("CRASH DURING SERVER STARTUP:", err);
+    throw err;
+  }
 
   if (shouldGenerateBootstrapInviteAfterStart(config)) {
     p.log.step("Generating bootstrap CEO invite");

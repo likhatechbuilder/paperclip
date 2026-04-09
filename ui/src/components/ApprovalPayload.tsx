@@ -1,4 +1,4 @@
-import { UserPlus, Lightbulb, ShieldAlert, ShieldCheck } from "lucide-react";
+import { UserPlus, Lightbulb, ShieldAlert, ShieldCheck, Brain } from "lucide-react";
 import { formatCents } from "../lib/utils";
 
 export const typeLabel: Record<string, string> = {
@@ -6,6 +6,7 @@ export const typeLabel: Record<string, string> = {
   approve_ceo_strategy: "CEO Strategy",
   budget_override_required: "Budget Override",
   request_board_approval: "Board Approval",
+  approve_observer_insight: "Observer Insight",
 };
 
 function firstNonEmptyString(...values: unknown[]): string | null {
@@ -41,6 +42,7 @@ export const typeIcon: Record<string, typeof UserPlus> = {
   approve_ceo_strategy: Lightbulb,
   budget_override_required: ShieldAlert,
   request_board_approval: ShieldCheck,
+  approve_observer_insight: Brain,
 };
 
 export const defaultTypeIcon = ShieldCheck;
@@ -229,6 +231,25 @@ function BoardApprovalPayloadContent({ payload }: { payload: Record<string, unkn
   );
 }
 
+export function ObserverInsightPayload({ payload }: { payload: Record<string, unknown> }) {
+  const markdown = payload.suggestion ?? payload.skillMarkdown ?? payload.content;
+  return (
+    <div className="mt-3 space-y-1.5 text-sm">
+      <PayloadField label="Title" value={payload.title} />
+      {!!markdown && (
+        <div className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground whitespace-pre-wrap font-mono text-xs max-h-48 overflow-y-auto">
+          {String(markdown)}
+        </div>
+      )}
+      {!markdown && (
+        <pre className="mt-2 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground overflow-x-auto max-h-48">
+          {JSON.stringify(payload, null, 2)}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 export function ApprovalPayloadRenderer({
   type,
   payload,
@@ -243,5 +264,6 @@ export function ApprovalPayloadRenderer({
   if (type === "request_board_approval") {
     return <BoardApprovalPayload payload={payload} hideTitle={hidePrimaryTitle} />;
   }
+  if (type === "approve_observer_insight") return <ObserverInsightPayload payload={payload} />;
   return <CeoStrategyPayload payload={payload} />;
 }

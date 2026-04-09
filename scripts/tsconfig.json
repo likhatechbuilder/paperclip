@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "paths": {
+      "@paperclipai/db": ["../packages/db/src/index.ts"],
+      "@paperclipai/shared": ["../packages/shared/src/index.ts"],
+      "@paperclipai/adapter-utils": ["../packages/adapter-utils/src/index.ts"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.mjs"]
+}
