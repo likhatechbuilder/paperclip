@@ -1,0 +1,3 @@
+## 2024-04-03 - O(1) Lookups in React List Renders
+**Learning:** Performing O(N) array `.find()` operations inside a React component's render loop (such as rendering lists) can quickly degrade performance, especially as datasets grow. The Dashboard component suffered from this when resolving agent names. In addition, sorting arrays synchronously during the render cycle causes unnecessary re-computations and main thread blocking on every re-render.
+**Action:** Always utilize `useMemo` for any list sorting/filtering operations. Pre-compute O(1) lookup maps (like `agentMap`) via `useMemo` at the component root, and use those maps for resolving relationships when rendering lists, rather than repeatedly searching arrays.

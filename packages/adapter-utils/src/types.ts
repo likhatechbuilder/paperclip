@@ -389,6 +389,9 @@ export interface CreateConfigValues {
   maxTurnsPerRun: number;
   heartbeatEnabled: boolean;
   intervalSec: number;
+  endpointUrl?: string;
+  system?: string;
+  options?: string | Record<string, unknown>;
   /** Arbitrary key-value pairs populated by schema-driven config fields. */
   adapterSchemaValues?: Record<string, unknown>;
 }

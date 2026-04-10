@@ -344,6 +344,25 @@ export function IssueProperties({
     return `${stageLabel} pending${participantLabel ? ` with ${participantLabel}` : ""}`;
   })();
 
+  // ⚡ Bolt Optimization: Memoize filtered lists to prevent unnecessary re-renders on keystrokes
+  const filteredLabels = useMemo(() => {
+    if (!labelSearch.trim()) return labels ?? [];
+    const q = labelSearch.toLowerCase();
+    return (labels ?? []).filter((label) => label.name.toLowerCase().includes(q));
+  }, [labels, labelSearch]);
+
+  const filteredAgents = useMemo(() => {
+    if (!assigneeSearch.trim()) return sortedAgents;
+    const q = assigneeSearch.toLowerCase();
+    return sortedAgents.filter((a) => a.name.toLowerCase().includes(q));
+  }, [sortedAgents, assigneeSearch]);
+
+  const filteredProjects = useMemo(() => {
+    if (!projectSearch.trim()) return orderedProjects;
+    const q = projectSearch.toLowerCase();
+    return orderedProjects.filter((p) => p.name.toLowerCase().includes(q));
+  }, [orderedProjects, projectSearch]);
+
   const labelsTrigger = (issue.labels ?? []).length > 0 ? (
     <div className="flex items-center gap-1 flex-wrap">
       {(issue.labels ?? []).slice(0, 3).map((label) => (
@@ -380,12 +399,7 @@ export function IssueProperties({
         autoFocus={!inline}
       />
       <div className="max-h-44 overflow-y-auto overscroll-contain space-y-0.5">
-        {(labels ?? [])
-          .filter((label) => {
-            if (!labelSearch.trim()) return true;
-            return label.name.toLowerCase().includes(labelSearch.toLowerCase());
-          })
-          .map((label) => {
+        {filteredLabels.map((label) => {
             const selected = (issue.labelIds ?? []).includes(label.id);
             return (
               <div key={label.id} className="flex items-center gap-1">
@@ -404,6 +418,7 @@ export function IssueProperties({
                   className="p-1 text-muted-foreground hover:text-destructive rounded"
                   onClick={() => deleteLabel.mutate(label.id)}
                   title={`Delete ${label.name}`}
+                  aria-label={`Delete ${label.name}`}
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -506,13 +521,7 @@ export function IssueProperties({
             {creatorUserLabel ? `Assign to ${creatorUserLabel}` : "Assign to requester"}
           </button>
         )}
-        {sortedAgents
-          .filter((a) => {
-            if (!assigneeSearch.trim()) return true;
-            const q = assigneeSearch.toLowerCase();
-            return a.name.toLowerCase().includes(q);
-          })
-          .map((a) => (
+        {filteredAgents.map((a) => (
           <button
             key={a.id}
             className={cn(
@@ -646,13 +655,7 @@ export function IssueProperties({
         >
           No project
         </button>
-        {orderedProjects
-          .filter((p) => {
-            if (!projectSearch.trim()) return true;
-            const q = projectSearch.toLowerCase();
-            return p.name.toLowerCase().includes(q);
-          })
-          .map((p) => (
+        {filteredProjects.map((p) => (
           <button
             key={p.id}
             className={cn(

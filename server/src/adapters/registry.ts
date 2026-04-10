@@ -55,6 +55,14 @@ import {
   agentConfigurationDoc as openclawGatewayAgentConfigurationDoc,
   models as openclawGatewayModels,
 } from "@paperclipai/adapter-openclaw-gateway";
+import {
+  execute as einsteinExecute,
+  testEnvironment as einsteinTestEnvironment,
+} from "@paperclipai/adapter-einstein-hand/server";
+import {
+  agentConfigurationDoc as einsteinAgentConfigurationDoc,
+  models as einsteinModels,
+} from "@paperclipai/adapter-einstein-hand";
 import { listCodexModels } from "./codex-models.js";
 import { listCursorModels } from "./cursor-models.js";
 import {
@@ -149,6 +157,14 @@ const openclawGatewayAdapter: ServerAdapterModule = {
   agentConfigurationDoc: openclawGatewayAgentConfigurationDoc,
 };
 
+const einsteinHandAdapter: ServerAdapterModule = {
+  type: "einstein_hand",
+  execute: einsteinExecute,
+  testEnvironment: einsteinTestEnvironment,
+  models: einsteinModels,
+  agentConfigurationDoc: einsteinAgentConfigurationDoc,
+};
+
 const openCodeLocalAdapter: ServerAdapterModule = {
   type: "opencode_local",
   execute: openCodeExecute,
@@ -207,6 +223,7 @@ function registerBuiltInAdapters() {
     cursorLocalAdapter,
     geminiLocalAdapter,
     openclawGatewayAdapter,
+    einsteinHandAdapter,
     ollamaLocalAdapter,
     processAdapter,
     httpAdapter,

@@ -537,6 +537,25 @@ export function CompanySettings() {
         </div>
       </div>
 
+      {/* Integrations */}
+      <div className="space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Integrations
+        </div>
+        <div className="rounded-md border border-border px-4 py-4">
+          <p className="text-sm text-muted-foreground">
+            Connect your Google account to let Paperclip access apps like Gmail.
+          </p>
+          <div className="mt-3">
+            <Button size="sm" variant="outline" asChild>
+              <a href={`/api/companies/${selectedCompanyId}/google-auth/start`}>
+                Connect Google Account
+              </a>
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Import / Export */}
       <div className="space-y-4">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
