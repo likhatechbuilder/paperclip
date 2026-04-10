@@ -9,7 +9,6 @@ import { openClawGatewayUIAdapter } from "./openclaw-gateway";
 import { ollamaLocalUIAdapter } from "./ollama-local";
 import { processUIAdapter } from "./process";
 import { httpUIAdapter } from "./http";
-import { ollamaUIAdapter } from "./ollama-local";
 import { loadDynamicParser, invalidateDynamicParser } from "./dynamic-loader";
 import { SchemaConfigFields, buildSchemaAdapterConfig } from "./schema-config-fields";
 
@@ -56,7 +55,6 @@ function registerBuiltInUIAdapters() {
     piLocalUIAdapter,
     cursorLocalUIAdapter,
     openClawGatewayUIAdapter,
-    ollamaUIAdapter,
     processUIAdapter,
     httpUIAdapter,
   ]) {
