@@ -8,6 +8,7 @@ export {
   type MigrationState,
   type MigrationHistoryReconcileResult,
   migratePostgresIfEmpty,
+  truncateAllTables,
   type MigrationBootstrapResult,
   type Db,
 } from "./client.js";

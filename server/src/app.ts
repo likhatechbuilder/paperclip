@@ -33,6 +33,7 @@ import { accessRoutes } from "./routes/access.js";
 import { pluginRoutes } from "./routes/plugins.js";
 import { adapterRoutes } from "./routes/adapters.js";
 import { pluginUiStaticRoutes } from "./routes/plugin-ui-static.js";
+import { adminRoutes } from "./routes/admin.js";
 import { applyUiBranding } from "./ui-branding.js";
 import { logger } from "./middleware/logger.js";
 import { DEFAULT_LOCAL_PLUGIN_DIR, pluginLoader } from "./services/plugin-loader.js";
@@ -63,6 +64,7 @@ export function resolveViteHmrPort(serverPort: number): number {
 
 export async function createApp(
   db: Db,
+  databaseUrl: string,
   opts: {
     uiMode: UiMode;
     serverPort: number;
@@ -235,6 +237,7 @@ export async function createApp(
     ),
   );
   api.use(adapterRoutes());
+  api.use("/admin", adminRoutes(db, databaseUrl));
   api.use(
     accessRoutes(db, {
       deploymentMode: opts.deploymentMode,

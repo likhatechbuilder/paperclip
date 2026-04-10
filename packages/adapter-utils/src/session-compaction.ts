@@ -41,9 +41,9 @@ export const LEGACY_SESSIONED_ADAPTER_TYPES = new Set([
   "codex_local",
   "cursor",
   "gemini_local",
-  "hermes_local",
   "opencode_local",
   "pi_local",
+  "ollama_local",
 ]);
 
 export const ADAPTER_SESSION_MANAGEMENT: Record<string, AdapterSessionManagement> = {
@@ -77,7 +77,7 @@ export const ADAPTER_SESSION_MANAGEMENT: Record<string, AdapterSessionManagement
     nativeContextManagement: "unknown",
     defaultSessionCompaction: DEFAULT_SESSION_COMPACTION_POLICY,
   },
-  hermes_local: {
+  ollama_local: {
     supportsSessionResume: true,
     nativeContextManagement: "confirmed",
     defaultSessionCompaction: ADAPTER_MANAGED_SESSION_POLICY,

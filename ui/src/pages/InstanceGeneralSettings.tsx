@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PatchInstanceGeneralSettings } from "@paperclipai/shared";
-import { LogOut, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, LogOut, SlidersHorizontal } from "lucide-react";
 import { authApi } from "@/api/auth";
 import { instanceSettingsApi } from "@/api/instanceSettings";
+import { adminApi } from "@/api/admin";
 import { Button } from "../components/ui/button";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
@@ -24,6 +25,17 @@ export function InstanceGeneralSettings() {
     },
     onError: (error) => {
       setActionError(error instanceof Error ? error.message : "Failed to sign out.");
+    },
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: (passkey: string) => adminApi.resetInstance(passkey),
+    onSuccess: () => {
+      window.alert("Instance reset successfully. All data has been cleared.");
+      window.location.href = "/";
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : "Failed to reset instance.");
     },
   });
 
@@ -196,6 +208,37 @@ export function InstanceGeneralSettings() {
             <code>"prompt"</code>. Unset and <code>"prompt"</code> both mean no default has been
             chosen yet.
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-destructive/20 bg-destructive/5 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <h2 className="text-sm font-semibold text-destructive">Wipe everything (Reset)</h2>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Permanently delete all companies, agents, tasks, and settings. This will return the
+              application to a fresh install state. This action cannot be undone.
+            </p>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={resetMutation.isPending}
+            onClick={() => {
+              const passkey = window.prompt("Enter passkey (1234) to reset the entire instance:");
+              if (passkey === null) return;
+              if (passkey === "") {
+                window.alert("Passkey is required.");
+                return;
+              }
+              if (window.confirm("ARE YOU ABSOLUTELY SURE? All data across all companies will be permanently deleted.")) {
+                resetMutation.mutate(passkey);
+              }
+            }}
+          >
+            <AlertTriangle className="size-4" />
+            {resetMutation.isPending ? "Resetting..." : "Reset Instance"}
+          </Button>
         </div>
       </section>
 

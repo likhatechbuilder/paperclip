@@ -754,6 +754,25 @@ export async function migratePostgresIfEmpty(url: string): Promise<MigrationBoot
   }
 }
 
+export async function truncateAllTables(url: string): Promise<void> {
+  const sql = createUtilitySql(url);
+  try {
+    // Truncate all tables in the public schema except for the migrations table.
+    // We use CASCADE to handle foreign key constraints correctly.
+    await sql.unsafe(`
+      DO $$ DECLARE
+          r RECORD;
+      BEGIN
+          FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != '${DRIZZLE_MIGRATIONS_TABLE}') LOOP
+              EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
+          END LOOP;
+      END $$;
+    `);
+  } finally {
+    await sql.end();
+  }
+}
+
 export async function ensurePostgresDatabase(
   url: string,
   databaseName: string,

@@ -74,10 +74,10 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
     description: "Local multi-provider agent",
     icon: OpenCodeLogoIcon,
   },
-  hermes_local: {
-    label: "Hermes Agent",
-    description: "Local Hermes CLI agent",
-    icon: HermesIcon,
+  ollama_local: {
+    label: "Ollama Local",
+    description: "Local Ollama CLI provider",
+    icon: Bot,
   },
   pi_local: {
     label: "Pi",
