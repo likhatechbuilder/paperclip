@@ -1,62 +1,69 @@
-import { useDeferredValue, useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { pickTextColorForPillBg } from "@/lib/color-contrast";
 import { useDialog } from "../context/DialogContext";
 import { useCompany } from "../context/CompanyContext";
+import { executionWorkspacesApi } from "../api/execution-workspaces";
 import { issuesApi } from "../api/issues";
 import { authApi } from "../api/auth";
+import { instanceSettingsApi } from "../api/instanceSettings";
 import { queryKeys } from "../lib/queryKeys";
 import { formatAssigneeUserLabel } from "../lib/assignees";
 import { groupBy } from "../lib/groupBy";
-import { formatDate, cn } from "../lib/utils";
-import { timeAgo } from "../lib/timeAgo";
+import {
+  applyIssueFilters,
+  countActiveIssueFilters,
+  defaultIssueFilterState,
+  issueFilterLabel,
+  issuePriorityOrder,
+  issueStatusOrder,
+  type IssueFilterState,
+} from "../lib/issue-filters";
+import {
+  DEFAULT_INBOX_ISSUE_COLUMNS,
+  getAvailableInboxIssueColumns,
+  loadInboxIssueColumns,
+  normalizeInboxIssueColumns,
+  resolveIssueWorkspaceName,
+  saveInboxIssueColumns,
+  type InboxIssueColumn,
+} from "../lib/inbox";
+import { cn } from "../lib/utils";
+import {
+  InboxIssueMetaLeading,
+  InboxIssueTrailingColumns,
+  IssueColumnPicker,
+  issueActivityText,
+  issueTrailingColumns,
+} from "./IssueColumns";
 import { StatusIcon } from "./StatusIcon";
-import { PriorityIcon } from "./PriorityIcon";
 import { EmptyState } from "./EmptyState";
 import { Identity } from "./Identity";
+import { IssueFiltersPopover } from "./IssueFiltersPopover";
 import { IssueRow } from "./IssueRow";
 import { PageSkeleton } from "./PageSkeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { CircleDot, Plus, Filter, ArrowUpDown, Layers, Check, X, ChevronRight, List, Columns3, User, Search } from "lucide-react";
+import { CircleDot, Plus, ArrowUpDown, Layers, Check, ChevronRight, List, Columns3, User, Search } from "lucide-react";
 import { KanbanBoard } from "./KanbanBoard";
 import { buildIssueTree, countDescendants } from "../lib/issue-tree";
-import type { Issue } from "@paperclipai/shared";
-
-/* ── Helpers ── */
-
-const statusOrder = ["in_progress", "todo", "backlog", "in_review", "blocked", "done", "cancelled"];
-const priorityOrder = ["critical", "high", "medium", "low"];
-
-function statusLabel(status: string): string {
-  return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import type { Issue, Project } from "@paperclipai/shared";
+const ISSUE_SEARCH_DEBOUNCE_MS = 150;
 
 /* ── View state ── */
 
-export type IssueViewState = {
-  statuses: string[];
-  priorities: string[];
-  assignees: string[];
-  labels: string[];
-  projects: string[];
+export type IssueViewState = IssueFilterState & {
   sortField: "status" | "priority" | "title" | "created" | "updated";
   sortDir: "asc" | "desc";
-  groupBy: "status" | "priority" | "assignee" | "none";
+  groupBy: "status" | "priority" | "assignee" | "workspace" | "parent" | "none";
   viewMode: "list" | "board";
   collapsedGroups: string[];
   collapsedParents: string[];
 };
 
 const defaultViewState: IssueViewState = {
-  statuses: [],
-  priorities: [],
-  assignees: [],
-  labels: [],
-  projects: [],
+  ...defaultIssueFilterState,
   sortField: "updated",
   sortDir: "desc",
   groupBy: "none",
@@ -64,13 +71,6 @@ const defaultViewState: IssueViewState = {
   collapsedGroups: [],
   collapsedParents: [],
 };
-
-const quickFilterPresets = [
-  { label: "All", statuses: [] as string[] },
-  { label: "Active", statuses: ["todo", "in_progress", "in_review", "blocked"] },
-  { label: "Backlog", statuses: ["backlog"] },
-  { label: "Done", statuses: ["done", "cancelled"] },
-];
 function getViewState(key: string): IssueViewState {
   try {
     const raw = localStorage.getItem(key);
@@ -83,45 +83,15 @@ function saveViewState(key: string, state: IssueViewState) {
   localStorage.setItem(key, JSON.stringify(state));
 }
 
-function arraysEqual(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  const sa = [...a].sort();
-  const sb = [...b].sort();
-  return sa.every((v, i) => v === sb[i]);
-}
-
-function toggleInArray(arr: string[], value: string): string[] {
-  return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
-}
-
-function applyFilters(issues: Issue[], state: IssueViewState, currentUserId?: string | null): Issue[] {
-  let result = issues;
-  if (state.statuses.length > 0) result = result.filter((i) => state.statuses.includes(i.status));
-  if (state.priorities.length > 0) result = result.filter((i) => state.priorities.includes(i.priority));
-  if (state.assignees.length > 0) {
-    result = result.filter((issue) => {
-      for (const assignee of state.assignees) {
-        if (assignee === "__unassigned" && !issue.assigneeAgentId && !issue.assigneeUserId) return true;
-        if (assignee === "__me" && currentUserId && issue.assigneeUserId === currentUserId) return true;
-        if (issue.assigneeAgentId === assignee) return true;
-      }
-      return false;
-    });
-  }
-  if (state.labels.length > 0) result = result.filter((i) => (i.labelIds ?? []).some((id) => state.labels.includes(id)));
-  if (state.projects.length > 0) result = result.filter((i) => i.projectId != null && state.projects.includes(i.projectId));
-  return result;
-}
-
 function sortIssues(issues: Issue[], state: IssueViewState): Issue[] {
   const sorted = [...issues];
   const dir = state.sortDir === "asc" ? 1 : -1;
   sorted.sort((a, b) => {
     switch (state.sortField) {
       case "status":
-        return dir * (statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status));
+        return dir * (issueStatusOrder.indexOf(a.status) - issueStatusOrder.indexOf(b.status));
       case "priority":
-        return dir * (priorityOrder.indexOf(a.priority) - priorityOrder.indexOf(b.priority));
+        return dir * (issuePriorityOrder.indexOf(a.priority) - issuePriorityOrder.indexOf(b.priority));
       case "title":
         return dir * a.title.localeCompare(b.title);
       case "created":
@@ -133,28 +103,6 @@ function sortIssues(issues: Issue[], state: IssueViewState): Issue[] {
     }
   });
   return sorted;
-}
-
-function countActiveFilters(state: IssueViewState): number {
-  let count = 0;
-  if (state.statuses.length > 0) count++;
-  if (state.priorities.length > 0) count++;
-  if (state.assignees.length > 0) count++;
-  if (state.labels.length > 0) count++;
-  if (state.projects.length > 0) count++;
-  return count;
-}
-
-function matchesIssueSearch(issue: Issue, normalizedSearch: string): boolean {
-  if (!normalizedSearch) return true;
-
-  return [
-    issue.identifier,
-    issue.title,
-    issue.description,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .some((value) => value.toLowerCase().includes(normalizedSearch));
 }
 
 /* ── Component ── */
@@ -291,7 +239,7 @@ export function IssuesList({
     enabled: !!selectedCompanyId,
   });
 
-  const activeFilterCount = countActiveFilters(viewState);
+  const activeFilterCount = countActiveIssueFilters(viewState, enableRoutineVisibilityFilter);
 
   const groupedContent = useMemo(() => {
     if (viewState.groupBy === "none") {
