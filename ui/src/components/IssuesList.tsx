@@ -172,6 +172,7 @@ export function IssuesList({
   const [assigneePickerIssueId, setAssigneePickerIssueId] = useState<string | null>(null);
   const [assigneeSearch, setAssigneeSearch] = useState("");
   const [issueSearch, setIssueSearch] = useState(initialSearch ?? "");
+  const [visibleIssueColumns, setVisibleIssueColumns] = useState<InboxIssueColumn[]>(loadInboxIssueColumns);
   const deferredIssueSearch = useDeferredValue(issueSearch);
   const normalizedIssueSearch = deferredIssueSearch.trim().toLowerCase();
 
@@ -284,9 +285,26 @@ export function IssuesList({
         if (groupKey.startsWith("__user:")) defaults.assigneeUserId = groupKey.slice("__user:".length);
         else defaults.assigneeAgentId = groupKey;
       }
+      else if (viewState.groupBy === "parent" && groupKey !== "__no_parent") {
+        defaults.parentId = groupKey;
+      }
     }
     return defaults;
   }, [projectId, viewState.groupBy]);
+
+  const setIssueColumns = useCallback((next: InboxIssueColumn[]) => {
+    const normalized = normalizeInboxIssueColumns(next);
+    setVisibleIssueColumns(normalized);
+    saveInboxIssueColumns(normalized);
+  }, []);
+
+  const toggleIssueColumn = useCallback((column: InboxIssueColumn, enabled: boolean) => {
+    if (enabled) {
+      setIssueColumns([...visibleIssueColumns, column]);
+      return;
+    }
+    setIssueColumns(visibleIssueColumns.filter((value) => value !== column));
+  }, [setIssueColumns, visibleIssueColumns]);
 
   const assignIssue = useCallback((issueId: string, assigneeAgentId: string | null, assigneeUserId: string | null = null) => {
     onUpdateIssue(issueId, { assigneeAgentId, assigneeUserId });
@@ -334,193 +352,29 @@ export function IssuesList({
               className={`p-1.5 transition-colors ${viewState.viewMode === "board" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => updateView({ viewMode: "board" })}
               title="Board view"
-              aria-label="Board view"
             >
               <Columns3 className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          {/* Filter */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="sm" className={`text-xs ${activeFilterCount > 0 ? "text-blue-600 dark:text-blue-400" : ""}`}>
-                <Filter className="h-3.5 w-3.5 sm:h-3 sm:w-3 sm:mr-1" />
-                <span className="hidden sm:inline">{activeFilterCount > 0 ? `Filters: ${activeFilterCount}` : "Filter"}</span>
-                {activeFilterCount > 0 && (
-                  <span className="sm:hidden text-[10px] font-medium ml-0.5">{activeFilterCount}</span>
-                )}
-                {activeFilterCount > 0 && (
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Clear filters"
-                    className="ml-1 hidden sm:block"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateView({ statuses: [], priorities: [], assignees: [], labels: [], projects: [] });
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        updateView({ statuses: [], priorities: [], assignees: [], labels: [], projects: [] });
-                      }
-                    }}
-                  >
-                    <X className="h-3 w-3" />
-                  </span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-[min(480px,calc(100vw-2rem))] p-0">
-              <div className="p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Filters</span>
-                  {activeFilterCount > 0 && (
-                    <button
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() => updateView({ statuses: [], priorities: [], assignees: [], labels: [] })}
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
+          <IssueColumnPicker
+            availableColumns={availableIssueColumns}
+            visibleColumnSet={visibleIssueColumnSet}
+            onToggleColumn={toggleIssueColumn}
+            onResetColumns={() => setIssueColumns(DEFAULT_INBOX_ISSUE_COLUMNS)}
+            title="Choose which issue columns stay visible"
+          />
 
-                {/* Quick filters */}
-                <div className="space-y-1.5">
-                  <span className="text-xs text-muted-foreground">Quick filters</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {quickFilterPresets.map((preset) => {
-                      const isActive = arraysEqual(viewState.statuses, preset.statuses);
-                      return (
-                        <button
-                          key={preset.label}
-                          className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                            isActive
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-                          }`}
-                          onClick={() => updateView({ statuses: isActive ? [] : [...preset.statuses] })}
-                        >
-                          {preset.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="border-t border-border" />
-
-                {/* Multi-column filter sections */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                  {/* Status */}
-                  <div className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Status</span>
-                    <div className="space-y-0.5">
-                      {statusOrder.map((s) => (
-                        <label key={s} className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-accent/50 cursor-pointer">
-                          <Checkbox
-                            checked={viewState.statuses.includes(s)}
-                            onCheckedChange={() => updateView({ statuses: toggleInArray(viewState.statuses, s) })}
-                          />
-                          <StatusIcon status={s} />
-                          <span className="text-sm">{statusLabel(s)}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Priority + Assignee stacked in right column */}
-                  <div className="space-y-3">
-                    {/* Priority */}
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">Priority</span>
-                      <div className="space-y-0.5">
-                        {priorityOrder.map((p) => (
-                          <label key={p} className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-accent/50 cursor-pointer">
-                            <Checkbox
-                              checked={viewState.priorities.includes(p)}
-                              onCheckedChange={() => updateView({ priorities: toggleInArray(viewState.priorities, p) })}
-                            />
-                            <PriorityIcon priority={p} />
-                            <span className="text-sm">{statusLabel(p)}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Assignee */}
-                    <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">Assignee</span>
-                      <div className="space-y-0.5 max-h-32 overflow-y-auto">
-                        <label className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-accent/50 cursor-pointer">
-                          <Checkbox
-                            checked={viewState.assignees.includes("__unassigned")}
-                            onCheckedChange={() => updateView({ assignees: toggleInArray(viewState.assignees, "__unassigned") })}
-                          />
-                          <span className="text-sm">No assignee</span>
-                        </label>
-                        {currentUserId && (
-                          <label className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-accent/50 cursor-pointer">
-                            <Checkbox
-                              checked={viewState.assignees.includes("__me")}
-                              onCheckedChange={() => updateView({ assignees: toggleInArray(viewState.assignees, "__me") })}
-                            />
-                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-sm">Me</span>
-                          </label>
-                        )}
-                        {(agents ?? []).map((agent) => (
-                          <label key={agent.id} className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-accent/50 cursor-pointer">
-                            <Checkbox
-                              checked={viewState.assignees.includes(agent.id)}
-                              onCheckedChange={() => updateView({ assignees: toggleInArray(viewState.assignees, agent.id) })}
-                            />
-                            <span className="text-sm">{agent.name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {labels && labels.length > 0 && (
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Labels</span>
-                        <div className="space-y-0.5 max-h-32 overflow-y-auto">
-                          {labels.map((label) => (
-                            <label key={label.id} className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-accent/50 cursor-pointer">
-                              <Checkbox
-                                checked={viewState.labels.includes(label.id)}
-                                onCheckedChange={() => updateView({ labels: toggleInArray(viewState.labels, label.id) })}
-                              />
-                              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: label.color }} />
-                              <span className="text-sm">{label.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {projects && projects.length > 0 && (
-                      <div className="space-y-1">
-                        <span className="text-xs text-muted-foreground">Project</span>
-                        <div className="space-y-0.5 max-h-32 overflow-y-auto">
-                          {projects.map((project) => (
-                            <label key={project.id} className="flex items-center gap-2 px-2 py-1 rounded-sm hover:bg-accent/50 cursor-pointer">
-                              <Checkbox
-                                checked={viewState.projects.includes(project.id)}
-                                onCheckedChange={() => updateView({ projects: toggleInArray(viewState.projects, project.id) })}
-                              />
-                              <span className="text-sm">{project.name}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <IssueFiltersPopover
+            state={viewState}
+            onChange={updateView}
+            activeFilterCount={activeFilterCount}
+            agents={agents}
+            projects={projects?.map((project) => ({ id: project.id, name: project.name }))}
+            labels={labels?.map((label) => ({ id: label.id, name: label.name, color: label.color }))}
+            currentUserId={currentUserId}
+            enableRoutineVisibilityFilter={enableRoutineVisibilityFilter}
+          />
 
           {/* Sort (list view only) */}
           {viewState.viewMode === "list" && (
