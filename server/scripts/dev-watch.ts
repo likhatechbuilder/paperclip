@@ -2,6 +2,9 @@ import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+console.log("[dev-watch] booting up");
+
 import { resolveServerDevWatchIgnorePaths } from "../src/dev-watch-ignore.ts";
 
 const require = createRequire(import.meta.url);
@@ -14,7 +17,7 @@ const child = spawn(
   [tsxCliPath, "watch", ...ignoreArgs, "src/index.ts"],
   {
     cwd: serverRoot,
-    env: process.env,
+    env: { ...process.env, PAPERCLIP_API_SERVER_ENTRY: "true" },
     stdio: "inherit",
   },
 );

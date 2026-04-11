@@ -44,6 +44,8 @@ const watchedFiles = [
 
 const ignoredDirectoryNames = new Set([
   ".git",
+  ".vscode",
+  ".Jules",
   ".turbo",
   ".vite",
   "coverage",
@@ -54,6 +56,8 @@ const ignoredDirectoryNames = new Set([
 
 const ignoredRelativePaths = new Set([
   ".paperclip/dev-server-status.json",
+  "raw_constants.ts",
+  "temp_constants.ts",
 ]);
 
 const tailscaleAuthFlagNames = new Set([
@@ -371,6 +375,9 @@ async function getMigrationStatusPayload() {
 }
 
 async function refreshPendingMigrations() {
+  if (process.platform === "win32") {
+    return { status: "unknown", pendingMigrations: [] };
+  }
   const payload = await getMigrationStatusPayload();
   pendingMigrations =
     payload.status === "needsMigrations" && Array.isArray(payload.pendingMigrations)
@@ -439,6 +446,10 @@ async function maybePreflightMigrations(options: { interactive?: boolean; autoAp
 }
 
 async function buildPluginSdk() {
+  if (existsSync(path.join(repoRoot, "packages/plugins/sdk/dist/index.js"))) {
+    console.log("[paperclip] plugin sdk already built, skipping to save time...");
+    return;
+  }
   console.log("[paperclip] building plugin sdk...");
   const result = await runPnpm(
     ["--filter", "@paperclipai/plugin-sdk", "build"],
@@ -464,8 +475,6 @@ async function markChildAsCurrent() {
   // Fire-and-forget: let the server handle migrations via PAPERCLIP_MIGRATION_AUTO_APPLY.
   if (process.platform !== "win32") {
     await refreshPendingMigrations();
-  } else {
-    void refreshPendingMigrations().catch(() => {});
   }
   await updateDevServiceRecord();
 }
@@ -523,7 +532,7 @@ async function stopChildForRestart() {
 async function startServerChild() {
   await buildPluginSdk();
 
-  const serverScript = mode === "watch" ? "dev:watch" : "dev";
+  const serverScript = mode === "watch" && process.platform !== "win32" ? "dev:watch" : "dev";
   
   // Prevent browser spam: only allow opening the browser if it's the very first start of this runner session
   const childEnv = { ...env };

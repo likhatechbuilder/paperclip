@@ -75,3 +75,48 @@ Escape hatch:
 
 `paperclipApiRequest` is limited to paths under `/api` and JSON bodies. It is
 meant for endpoints that do not yet have a dedicated MCP tool.
+
+## How It Works
+
+```
+┌──────────────────┐     HTTP/REST     ┌──────────────────┐
+│  AI Agent (LLM)  │  ───MCP stdio───▶ │  MCP Server      │ ──────────▶  Paperclip API
+│  (Claude, etc.)  │  ◀──responses───  │  (this package)  │ ◀──────────  /api/*
+└──────────────────┘                   └──────────────────┘
+```
+
+The MCP server is a **thin proxy** — it translates MCP tool calls into REST API requests. It does NOT:
+- Talk to the database directly
+- Reimplement business logic
+- Store state
+
+## For AI Agents
+
+### ⚡ Task Granulization
+
+MCP server changes are typically isolated to this package. Decompose:
+
+1. **New read tool:** Add tool definition → implement API fetch → register tool → test manually
+2. **New write tool:** Add tool definition → implement API fetch → add auth header forwarding → test
+3. **Fix existing tool:** Identify the API endpoint it calls → verify server-side behavior → fix mapping
+
+### Key Rules
+
+- **Mirror the REST API** — every tool should map 1:1 to an API endpoint
+- **Forward auth** — always pass `PAPERCLIP_API_KEY` as bearer token
+- **Validate inputs** — use JSON Schema for tool parameters
+
+### Verification
+
+```bash
+pnpm --filter @paperclipai/mcp-server build
+PAPERCLIP_API_URL=http://localhost:3100 node packages/mcp-server/dist/stdio.js
+```
+
+## Related Docs
+
+| Doc | Purpose |
+|-----|---------|
+| [`server/README.md`](../../server/README.md) | Server API surface and route documentation |
+| [`AGENTS.md`](../../AGENTS.md) | Repo contribution rules |
+| [`TASK_PATTERNS.md`](../../TASK_PATTERNS.md) | Step-by-step checklists |

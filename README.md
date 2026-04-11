@@ -217,6 +217,101 @@ By default, agents run on scheduled heartbeats and event-based triggers (task as
 
 <br/>
 
+## 🤖 For AI Agents (Jules, Copilot, Antigravity, Claude, Codex)
+
+> **If you are an AI agent reading this repo for the first time, start here.**
+
+### Orientation — read these files in order
+
+| Priority | File | What you learn |
+|----------|------|----------------|
+| 1 | [`AGENTS.md`](AGENTS.md) | Repo rules, anti-hallucination protocol, PR template |
+| 2 | [`STRUCTURE.md`](STRUCTURE.md) | Annotated directory map — every folder explained |
+| 3 | [`CONVENTIONS.md`](CONVENTIONS.md) | Coding style, naming, imports, DB schema rules |
+| 4 | [`GOTCHAS.md`](GOTCHAS.md) | Platform traps that **will** waste your time if you skip this |
+| 5 | [`TASK_PATTERNS.md`](TASK_PATTERNS.md) | Step-by-step checklists for common change types |
+| 6 | [`doc/decisions/`](doc/decisions/) | Architecture Decision Records — why things are the way they are |
+| 7 | [`doc/mistakes.md`](doc/mistakes.md) | Anti-patterns that cost real debugging time — do not repeat |
+| 8 | [`doc/SPEC-implementation.md`](doc/SPEC-implementation.md) | V1 build contract — the source of truth |
+| 9 | [`doc/DEVELOPING.md`](doc/DEVELOPING.md) | Dev environment setup |
+| 10 | [`doc/DATABASE.md`](doc/DATABASE.md) | Schema conventions & migration workflow |
+
+### ⚡ The #1 Rule: GRANULIZE YOUR TASKS
+
+**Never attempt a large change in one shot.** Break every task into the smallest possible atomic sub-tasks, then execute them one at a time.
+
+<table>
+<tr>
+<td width="50%">
+
+#### ❌ Bad (one giant task)
+```
+"Add a new adapter with server routes,
+ CLI support, UI config fields, tests,
+ and documentation"
+```
+*This will fail. You'll miss contract sync points, introduce type errors across packages, and produce unverifiable work.*
+
+</td>
+<td width="50%">
+
+#### ✅ Good (granulized)
+```
+1. Create adapter package skeleton
+2. Implement ServerAdapter interface
+3. Register in server adapter registry
+4. Add CLI stream formatter
+5. Register in CLI adapter registry
+6. Create UI config field renderer
+7. Add to UI adapter registry
+8. Run pnpm -r typecheck
+9. Write integration test
+10. Update docs
+```
+*Each step is independently verifiable.*
+
+</td>
+</tr>
+</table>
+
+**Why this matters:**
+- Paperclip is a **monorepo with 6+ packages** that must stay in sync
+- A change in `packages/db` ripples through `packages/shared` → `server` → `ui`
+- Small steps let you `pnpm -r typecheck` after each change and catch breaks immediately
+- If you get interrupted or context-limited, completed sub-tasks are still valid
+
+### Task sizing guide
+
+| Task size | Example | Approach |
+|-----------|---------|----------|
+| **Tiny** (1 file, < 20 lines) | Fix a typo, add a comment | Just do it |
+| **Small** (1-3 files, same package) | Add a helper function | Do it, then typecheck |
+| **Medium** (3-6 files, cross-package) | Add a new API route | Break into 3-5 sub-tasks |
+| **Large** (6+ files, cross-package) | Add a new adapter or feature | Break into 8-15 sub-tasks, verify after each |
+| **Epic** (architectural change) | New entity type end-to-end | Write a plan first, get approval, then execute in phases |
+
+### Verification checkpoint
+
+After **every** sub-task, run:
+```bash
+pnpm -r typecheck    # Catches contract sync issues immediately
+```
+
+Before claiming **any work is done**, run the full check:
+```bash
+pnpm -r typecheck && pnpm test:run && pnpm build
+```
+
+### Windows / NTFS users
+
+Read [`GOTCHAS.md`](GOTCHAS.md) **before writing any code**. Key traps:
+- `realpathSync()` → deadlocks the event loop
+- Drive letter casing (`F:\` vs `f:\`) → breaks module detection
+- `tsx watch` → spawns zombie processes
+- `npx vite build` → hangs indefinitely (use `node node_modules/vite/bin/vite.js build`)
+
+<br/>
+
 ## Development
 
 ```bash
@@ -231,6 +326,7 @@ pnpm db:migrate       # Apply migrations
 ```
 
 See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
+See [TASK_PATTERNS.md](TASK_PATTERNS.md) for step-by-step checklists for common tasks.
 
 <br/>
 

@@ -85,6 +85,9 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   let usage = { inputTokens: 0, outputTokens: 0 };
   let finalResponse = "";
 
+  let currentModel = model;
+  const failedModels = new Set<string>();
+
   try {
     // Agent Loop, max 15 tool calls per run to avoid infinite loops
     for (let turn = 0; turn < 15; turn++) {
@@ -95,26 +98,63 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         timeoutId = setTimeout(() => controller.abort(), timeoutSec * 1000);
       }
 
-      const res = await fetch(`${url}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          messages,
-          tools,
-          stream: false,
-          options: {
-            num_ctx: numCtx,
-            temperature,
-          },
-        }),
-        signal: controller.signal,
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${url}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: currentModel,
+            messages,
+            tools,
+            stream: false,
+            options: {
+              num_ctx: numCtx,
+              temperature,
+            },
+          }),
+          signal: controller.signal,
+        });
 
-      if (timeoutId) clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
 
-      if (!res.ok) {
-        throw new Error(`Ollama API error: ${res.statusText} ${await res.text()}`);
+        if (!res.ok) {
+          throw new Error(`Ollama API error: ${res.statusText} ${await res.text()}`);
+        }
+      } catch (fetchErr: any) {
+        if (fetchErr.name === 'AbortError') throw fetchErr; // Genuine user timeout
+
+        failedModels.add(currentModel);
+        await onLog("stderr", `[ollama-local] ⚠️ Model '${currentModel}' failed (${fetchErr.message}). Searching for dynamic fallback...\n`);
+
+        try {
+          const tagsRes = await fetch(`${url}/api/tags`);
+          if (!tagsRes.ok) throw new Error("Could not fetch tags for failover");
+          
+          const tagsData = await tagsRes.json();
+          const installedModels = (tagsData.models || []).map((m: any) => m.name) as string[];
+          
+          const available = installedModels.filter(m => !failedModels.has(m) && m !== currentModel);
+          if (available.length === 0) {
+            throw new Error("No fallback models available. All iterations exhausted.");
+          }
+
+          // Prioritize: 1st cloud, 2nd gemma, 3rd llama, 4th anything
+          let fallback = available.find(m => m.toLowerCase().includes("cloud"));
+          if (!fallback) fallback = available.find(m => m.toLowerCase().includes("gemma"));
+          if (!fallback) fallback = available.find(m => m.toLowerCase().includes("llama"));
+          if (!fallback) fallback = available[0];
+
+          await onLog("stdout", `[ollama-local] 🔄 DYNAMIC FAILOVER: Switching engine from '${currentModel}' to robust fallback '${fallback}'\n`);
+          
+          currentModel = fallback;
+          if (timeoutId) clearTimeout(timeoutId);
+          
+          turn--; // Re-run this exact same turn again with the new model
+          continue;
+        } catch (fallbackErr) {
+          throw fetchErr; // Pass up original error if failover routing fails
+        }
       }
 
       const data = await res.json();
@@ -171,7 +211,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       signal: null,
       timedOut: false,
       provider: "ollama",
-      model,
+      model: currentModel,
       usage,
       sessionParams: { messages },
       summary: finalResponse.slice(0, 2000),

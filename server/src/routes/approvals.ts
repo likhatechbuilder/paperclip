@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import type { Db } from "@paperclipai/db";
 import {
   addApprovalCommentSchema,
@@ -13,8 +15,11 @@ import {
   approvalService,
   heartbeatService,
   issueApprovalService,
+  companySkillService,
   logActivity,
   secretService,
+  agentService,
+  issueService,
 } from "../services/index.js";
 import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
 import { redactEventPayload } from "../redaction.js";
@@ -31,7 +36,10 @@ export function approvalRoutes(db: Db) {
   const svc = approvalService(db);
   const heartbeat = heartbeatService(db);
   const issueApprovalsSvc = issueApprovalService(db);
+  const companySkillsSvc = companySkillService(db);
   const secretsSvc = secretService(db);
+  const agentsSvc = agentService(db);
+  const issuesSvc = issueService(db);
   const strictSecretsMode = process.env.PAPERCLIP_SECRETS_STRICT_MODE === "true";
 
   router.get("/companies/:companyId/approvals", async (req, res) => {
@@ -145,6 +153,50 @@ export function approvalRoutes(db: Db) {
           linkedIssueIds,
         },
       });
+
+      // ---- AUTO-APPLY HERMES OBSERVER INSIGHTS ----
+      if (approval.type === "approve_observer_insight") {
+        const payload = approval.payload as any;
+        const autoApply = payload?.autoApply;
+        
+        if (autoApply && autoApply.action && autoApply.target && autoApply.content) {
+          try {
+            if (autoApply.action === "create_skill") {
+              await companySkillsSvc.createLocalSkill(approval.companyId, {
+                slug: autoApply.target,
+                name: autoApply.target,
+                markdown: autoApply.content,
+              });
+              logger.info({ approvalId: approval.id, target: autoApply.target }, "Hermes insight auto-created skill");
+            } else if (autoApply.action === "append_to_file") {
+              const fullPath = path.resolve(process.cwd(), autoApply.target);
+              await fs.appendFile(fullPath, "\n\n" + autoApply.content + "\n");
+              logger.info({ approvalId: approval.id, target: autoApply.target }, "Hermes insight auto-appended file");
+            } else if (autoApply.action === "update_agent") {
+              const agentRef = await agentsSvc.resolveByReference(approval.companyId, autoApply.target);
+              if (agentRef.agent) {
+                const payloadStr = autoApply.content.trim().replace(/^```json|```$/g, "").trim();
+                const payload = JSON.parse(payloadStr);
+                await agentsSvc.update(agentRef.agent.id, payload);
+                logger.info({ approvalId: approval.id, target: autoApply.target }, "Chairman auto-updated agent");
+              }
+            } else if (autoApply.action === "create_task") {
+              const agentRef = await agentsSvc.resolveByReference(approval.companyId, autoApply.target);
+              await issuesSvc.create(approval.companyId, {
+                title: typeof payload.title === "string" ? payload.title : "Chairman Directive",
+                description: autoApply.content,
+                assigneeAgentId: agentRef.agent?.id ?? null,
+                status: "todo",
+                priority: "high"
+              });
+              logger.info({ approvalId: approval.id, target: autoApply.target }, "Chairman auto-created task");
+            }
+          } catch (err) {
+            logger.warn({ err, approvalId: approval.id }, "Failed to auto-apply Hermes observer insight");
+          }
+        }
+      }
+      // ---------------------------------------------
 
       if (approval.requestedByAgentId) {
         try {

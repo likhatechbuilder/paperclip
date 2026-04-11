@@ -5,6 +5,9 @@ import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { pathToFileURL } from "node:url";
+
+console.log("[src/index.ts] booting up");
+
 import type { Request as ExpressRequest, RequestHandler } from "express";
 import { and, eq } from "drizzle-orm";
 import {
@@ -716,15 +719,23 @@ function isMainModule(metaUrl: string): boolean {
   const entry = process.argv[1];
   if (!entry) return false;
   try {
-    return pathToFileURL(resolve(entry)).href === metaUrl;
+    return pathToFileURL(resolve(entry)).href.toLowerCase() === metaUrl.toLowerCase();
   } catch {
     return false;
   }
 }
 
-if (isMainModule(import.meta.url)) {
+console.log("[src/index.ts] evaluated condition:", {
+  isMain: isMainModule(import.meta.url),
+  envEntry: process.env.PAPERCLIP_API_SERVER_ENTRY,
+});
+
+if (isMainModule(import.meta.url) || process.env.PAPERCLIP_API_SERVER_ENTRY === "true") {
+  console.log("[src/index.ts] CALLED startServer()");
   void startServer().catch((err) => {
     logger.error({ err }, "Paperclip server failed to start");
     process.exit(1);
   });
+} else {
+  console.log("[src/index.ts] BYPASSING startServer()");
 }

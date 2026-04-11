@@ -62,3 +62,35 @@ Phase 0 covers narrow behavior evals for the Paperclip heartbeat skill:
 - **Phase 2:** Pairwise and rubric scoring layer
 - **Phase 3:** Efficiency metrics integration
 - **Phase 4:** Production-case ingestion
+
+## For AI Agents
+
+### ⚡ Task Granulization
+
+Eval changes are self-contained — they don't ripple through the monorepo. But still decompose:
+
+1. **New test case:** Create YAML file in `evals/promptfoo/cases/` → run `promptfoo eval` to verify
+2. **New phase setup:** Plan first → get approval → implement framework → add initial cases → verify
+3. **Fix failing eval:** Identify which assertion fails → fix the assertion OR the behavior → re-run
+
+### Key Rules
+
+- **Don't modify evals to pass** — if an eval fails, the agent behavior may need fixing, not the eval
+- **Keep assertions deterministic** — avoid fuzzy matching that could mask regressions
+- **One case per file** — makes reviewing and debugging individual failures easy
+
+### Verification
+
+```bash
+pnpm evals:smoke           # Quick run
+cd evals/promptfoo && promptfoo eval   # Full run
+promptfoo view             # Browser results viewer
+```
+
+## Related Docs
+
+| Doc | Purpose |
+|-----|---------|
+| [`doc/plans/2026-03-13-agent-evals-framework.md`](../doc/plans/2026-03-13-agent-evals-framework.md) | Full design rationale |
+| [`AGENTS.md`](../AGENTS.md) | Repo contribution rules |
+| [`TASK_PATTERNS.md`](../TASK_PATTERNS.md) | Step-by-step checklists |

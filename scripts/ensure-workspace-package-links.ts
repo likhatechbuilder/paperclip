@@ -107,15 +107,16 @@ function runCommand(command: string, args: string[], cwd: string) {
 }
 
 async function ensureServerWorkspaceLinksCurrent() {
-  if (SKIP_CHECK) {
-    console.log("[paperclip] skipping workspace package link check (PAPERCLIP_SKIP_WORKSPACE_LINK_CHECK=true)");
+  if (SKIP_CHECK || process.platform === "win32") {
+    console.log("[paperclip] skipping workspace package link check (avoiding NTFS deadlocks)");
     return;
   }
 
   console.log("[paperclip] verifying workspace package links...");
   
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error("Timeout during workspace link verification")), TIMEOUT_MS);
+    timeoutHandle = setTimeout(() => reject(new Error("Timeout during workspace link verification")), TIMEOUT_MS);
   });
 
   try {
@@ -150,7 +151,12 @@ async function ensureServerWorkspaceLinksCurrent() {
   } catch (error) {
     console.warn(`[paperclip] WARNING: Workspace link verification failed or timed out: ${error instanceof Error ? error.message : String(error)}`);
     console.warn("[paperclip] Proceeding anyway, but some local package changes might not be reflected.");
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
   }
 }
 
 await ensureServerWorkspaceLinksCurrent();
+process.exit(0);

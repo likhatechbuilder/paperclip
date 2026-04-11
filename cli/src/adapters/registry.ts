@@ -8,7 +8,7 @@ import { printPiStreamEvent } from "@paperclipai/adapter-pi-local/cli";
 import { printOpenClawGatewayStreamEvent } from "@paperclipai/adapter-openclaw-gateway/cli";
 import { processCLIAdapter } from "./process/index.js";
 import { httpCLIAdapter } from "./http/index.js";
-import { printOllamaStreamEvent } from "@paperclipai/adapter-ollama-local/cli";
+import { formatStdoutEvent as printOllamaStreamEvent } from "@paperclipai/adapter-ollama-local/cli";
 
 const claudeLocalCLIAdapter: CLIAdapterModule = {
   type: "claude_local",

@@ -16,9 +16,77 @@ Before making changes, read in this order:
 3. `doc/SPEC-implementation.md`
 4. `doc/DEVELOPING.md`
 5. `doc/DATABASE.md`
+6. `STRUCTURE.md` — annotated repo map (every directory explained)
+7. `GOTCHAS.md` — **mandatory on Windows** — platform traps and hard-won fixes
+8. `TASK_PATTERNS.md` — step-by-step checklists for common change types
 
 `doc/SPEC.md` is long-horizon product context.
 `doc/SPEC-implementation.md` is the concrete V1 build contract.
+
+## 2.1. Task Decomposition (MANDATORY)
+
+**Every task must be broken into the smallest possible atomic sub-tasks.**
+
+This is non-negotiable. Paperclip is a monorepo where a schema change ripples through `packages/db` → `packages/shared` → `server` → `ui`. Large, monolithic changes invariably break contract synchronization.
+
+**Rules:**
+1. **One concern per sub-task.** Don't mix schema changes with route changes with UI changes.
+2. **Typecheck after every sub-task:** `pnpm -r typecheck`
+3. **If a task touches 3+ packages, write a plan first** in `doc/plans/YYYY-MM-DD-slug.md`.
+4. **If a task has more than 5 files, create a checklist** and track progress.
+5. **Never skip verification.** Run `pnpm -r typecheck` between sub-tasks, not just at the end.
+
+**Task sizing:**
+
+| Size | Files | Packages | Approach |
+|------|-------|----------|----------|
+| Tiny | 1 | 1 | Just do it |
+| Small | 1-3 | 1 | Do it, typecheck |
+| Medium | 3-6 | 2-3 | Break into 3-5 sub-tasks |
+| Large | 6+ | 3+ | Break into 8-15 sub-tasks, verify each |
+| Epic | 10+ | 4+ | Write plan → get approval → execute in phases |
+
+## 2.2. Anti-Hallucination Protocol (MANDATORY)
+
+**Before referencing ANY file, function, type, or API endpoint:**
+
+1. **VERIFY the file exists** — use your tools to list/read the file. Never assume.
+2. **VERIFY the export exists** — check the package's `index.ts` or barrel file.
+3. **VERIFY the API endpoint exists** — check `server/src/routes/*.ts`.
+4. **VERIFY the schema table exists** — check `packages/db/src/schema/index.ts`.
+
+**Fast-lookup:** The `.context/` directory contains auto-generated indexes:
+- `.context/shared-exports.md` — all types, constants, validators from `@paperclipai/shared`
+- `.context/schema-snapshot.md` — all 69 database table exports
+- `.context/api-surface.md` — all API routes across 30 route files
+- `.context/adapter-registry.md` — all adapters and their registration status
+- Regenerate with: `pnpm context:generate`
+
+**If unsure about anything, READ the source. Do NOT guess.**
+
+**Before claiming ANY task is complete:**
+
+```sh
+pnpm -r typecheck          # Must pass with exit code 0
+git diff --stat             # Verify only intended files changed
+curl localhost:3100/api/health  # Verify server still works (if running)
+```
+
+**Context recovery — if you've lost track of where you are:**
+
+1. Read `STRUCTURE.md` — recover repo layout
+2. Read `CONVENTIONS.md` — recover coding patterns
+3. Read `doc/mistakes.md` — avoid known traps
+4. Read `doc/decisions/*.md` — understand why things are the way they are
+
+## 2.3. Context System References
+
+| Document | Purpose | Read when... |
+|----------|---------|-------------|
+| [`CONVENTIONS.md`](CONVENTIONS.md) | Coding style, naming, DB schema rules | ...writing any code |
+| [`doc/decisions/`](doc/decisions/) | Architecture Decision Records (ADRs) | ...wondering "why was X done this way?" |
+| [`doc/mistakes.md`](doc/mistakes.md) | Anti-patterns that cost real debugging time | ...before attempting any fix |
+| [`GOTCHAS.md`](GOTCHAS.md) | Platform-specific traps | ...working on Windows or touching build/process code |
 
 ## 3. Repo Map
 

@@ -1,0 +1,26 @@
+schema: paperclip/v1
+agents:
+  architect:
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: optional
+  backend-lead:
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: optional
+  frontend-lead:
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: optional
+  qa-lead:
+    inputs:
+      env:
+        GH_TOKEN:
+          kind: secret
+          requirement: optional

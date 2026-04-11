@@ -1,7 +1,7 @@
 export const type = "ollama_local";
 export const label = "Ollama (local)";
 
-export const DEFAULT_OLLAMA_LOCAL_MODEL = "gemma:7b";
+export const DEFAULT_OLLAMA_MODEL = "gemma:7b";
 
 export const models = [
   { id: "gemma:latest", label: "Gemma" },

@@ -8,6 +8,7 @@ function toGlobstarPath(candidate: string): string {
 function addIgnorePath(target: Set<string>, candidate: string): void {
   target.add(candidate);
   target.add(toGlobstarPath(candidate));
+  if (process.platform === "win32") return;
   try {
     const realPath = fs.realpathSync(candidate);
     target.add(realPath);
